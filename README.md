@@ -1,4 +1,5 @@
-# Cyber-Android-Monitor-Pro-By-RB Device Performance Monitor (System Monitor\Device Info Viewer)
+# Cyber-Android-Monitor-Pro  
+The Ultimate Design GT high performance Device Performance Monitor (System Monitor\Device Info Viewer)
 
 ![Device](1.png)
 
@@ -14,7 +15,7 @@
 
 ## 🏛️ Project
 
-Cyber-Android-Monitor-Pro-By-RB
+Cyber-Android-Monitor-Pro
  System Monitor(deviceinfoviewer) provides real-time, accurate hardware status data visualization. Through an intuitive dark interface, it helps developers, hardware enthusiasts, and everyday users fully understand their device's operational status. Supports Android 5+
 
 ## 🗼 Core Features
