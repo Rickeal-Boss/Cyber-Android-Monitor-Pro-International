@@ -1,4 +1,4 @@
-# Cyber-Android-Monitor-Pro-By-RB Device Performance Monitor System Monitor(deviceinfoviewer\Device Info Viewer)
+# Cyber-Android-Monitor-Pro-By-RB Device Performance Monitor (System Monitor\Device Info Viewer)
 
 ![Device](1.png)
 
@@ -340,4 +340,4 @@ See details (device-info-viewer-review.html)
 
 ---
 
-### Models Participating in Review: Global top-tier GLM-5.2 as architecture review model and DeepSeek V4 Pro as primary review model, DeepSeek V4 Flash, GLM-5.1, GLM-5.0 Turbo as behind models
+### Models Participating in Review: Global top-tier Chinese AI model GLM-5.2 as architecture review model and DeepSeek V4 Pro as primary review model, DeepSeek V4 Flash, GLM-5.1, GLM-5.0 Turbo as behind models
