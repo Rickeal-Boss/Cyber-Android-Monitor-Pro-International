@@ -36,8 +36,8 @@ defaultConfig {
     applicationId "com.example.deviceinfoviewer"
     minSdk 21
     targetSdk 35
-    versionCode 202
-    versionName "2.0.202.0"
+    versionCode 404
+    versionName "4.0.404.0"
 
     buildConfigField "long", "BUILD_TIMESTAMP", "${System.currentTimeMillis()}L"
     def buildDate = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(new java.util.Date())
@@ -46,11 +46,7 @@ defaultConfig {
 
     buildTypes {
         release {
-            // ★ 性能优化 (2026-06-19): 启用 R8 代码缩减 + 资源缩减
-            //   - minifyEnabled: 移除未使用代码（第三方库死代码），减小 dex 体积，加快类加载
-            //   - shrinkResources: 移除未引用资源，减小 APK 体积
-            //   - proguard-rules.pro 保留 -dontobfuscate（不混淆），保护大量反射调用
-            //     (SystemProperties/BatteryManager hidden field/GnssStatus/VMRuntime 等)
+            
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -73,11 +69,7 @@ defaultConfig {
         buildConfig true    // ← 新增：启用 BuildConfig 字段生成
     }
 
-    // ★ 启动性能优化 (2026-06-19): R8 dex startup optimization
-    // gradle.properties 已启用 android.experimental.r8.dex-startup-optimization=true
-    // R8 根据 manifest 的启动 Activity 顺序优化 dex 类排列，冷启动减少 page fault
-    // 注: 完整 Baseline Profile 需 macrobenchmark 模块自动生成，
-    // src/main/baseline-prof.txt 为手写参考，需未来集成 macrobenchmark 插件生效
+   
 
 }
 
