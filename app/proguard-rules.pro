@@ -1,16 +1,16 @@
 # ============================================================
-#  ProGuard / R8 混淆规则 — Device Info Viewer
-#  minifyEnabled true + shrinkResources true 的运行时保护
+#  ProGuard / R8  — Device Info Viewer
+#  minifyEnabled true + shrinkResources true 
 # ============================================================
 
-# ===== Kotlin 协程 =====
+# ===== Kotlin  =====
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 -keepclassmembernames class kotlinx.coroutines.** {
     volatile <fields>;
 }
 
-# ===== Kotlin 反射支持 (Koin DI 核心依赖) =====
+# ===== Kotlin  =====
 -keep class kotlin.** { *; }
 -keep class kotlin.reflect.** { *; }
 -keepclassmembers class kotlin.reflect.** { *; }
@@ -19,11 +19,11 @@
 -keepattributes InnerClasses
 -keepattributes EnclosingMethod
 
-# ===== Compose 运行时 (防止动画/重组类被剥离) =====
+# ===== Compose  =====
 -keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
 
-# ===== Koin DI (依赖反射) =====
+# ===== Koin DI  =====
 -keep class org.koin.** { *; }
 -keep class * extends org.koin.core.module.Module { *; }
 -keepclassmembers class * {
@@ -31,7 +31,7 @@
     @org.koin.core.annotation.* <methods>;
 }
 
-# ===== R8 保留所有 ViewModel 构造器 (Koin viewModel{} 需要) =====
+# ===== R8  ViewModel  =====
 -keepclassmembers class * extends androidx.lifecycle.ViewModel {
     <init>(...);
 }
@@ -45,21 +45,21 @@
 -keep class * implements com.google.gson.JsonSerializer
 -keep class * implements com.google.gson.JsonDeserializer
 
-# ===== 保留项目自身数据模型 (Gson 反序列化 + LiveData 反射) =====
+# =====  =====
 -keep class com.example.deviceinfoviewer.data.model.** { *; }
 -keep class com.example.deviceinfoviewer.AppSettings { *; }
 -keep class com.example.deviceinfoviewer.FormatUtils { *; }
 
-# ===== 保留 BuildConfig =====
+# =====  BuildConfig =====
 -keep class com.example.deviceinfoviewer.BuildConfig { *; }
 
-# ===== 保留 Crash 日志 =====
+# =====  Crash  =====
 -keep class com.example.deviceinfoviewer.DeviceApplication { *; }
 
-# ===== 保留所有 ViewModel 类本身 (Koin 反射实例化) =====
+# =====  ViewModel ) =====
 -keep class com.example.deviceinfoviewer.ui.**ViewModel { *; }
 
-# ===== 保留 Repository 和 DataSource (单例/反射) =====
+# =====  Repository 和 DataSource  =====
 -keep class com.example.deviceinfoviewer.data.repository.** { *; }
 -keep class com.example.deviceinfoviewer.data.source.** { *; }
 
@@ -73,7 +73,7 @@
 # ===== 保留 util 工具类 =====
 -keep class com.example.deviceinfoviewer.util.** { *; }
 
-# ===== 保留整个项目包 (2026-06-19 启用 R8 shrink 的安全网) =====
+# ===== 保留整个项目包  =====
 # 项目大量使用反射 (SystemProperties/BatteryManager hidden field/GnssStatus/
 # VMRuntime/MobileNetwork getter 等) + Compose Composable lambda 元数据,
 # 整体 keep 项目包避免 shrink 误删。R8 仍可缩减第三方库 (kotlinx.coroutines/gson/koin) 死代码。
