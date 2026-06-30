@@ -24,6 +24,11 @@ class WifiDataSource(private val context: Context) {
         val wm = appContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
             ?: return info
 
+        // AP 扫描前置：WiFi 开启即扫描，不依赖连接状态
+        if (isWifiEnabled(wm)) {
+            info.nearbyAps = scanNearbyAps()
+        }
+
         val wifiInfo: WifiInfo = wm.connectionInfo ?: return info
 
         info.ssid = wifiInfo.ssid.replace("\"", "")
@@ -45,12 +50,13 @@ class WifiDataSource(private val context: Context) {
             info.ipv4 = formatIp(ipInt)
         }
 
-        // DHCP 信息（网关、DNS、子网掩码）
-        val dhcp: DhcpInfo = wm.dhcpInfo ?: return info
-        info.gateway = formatIp(dhcp.gateway)
-        info.dns = formatIp(dhcp.dns1)
-        info.subnetMask = formatIp(dhcp.netmask)
-        info.nearbyAps = scanNearbyAps()
+        // DHCP 信息（网关、DNS、子网掩码）—— 可能为 null (WiFi 未连接)
+        val dhcp: DhcpInfo? = wm.dhcpInfo
+        if (dhcp != null) {
+            info.gateway = formatIp(dhcp.gateway)
+            info.dns = formatIp(dhcp.dns1)
+            info.subnetMask = formatIp(dhcp.netmask)
+        }
 
         // === P1: dumpsys wifi 芯片温度和省电模式 ===
         resolveDumpsysWifi(info)
@@ -98,6 +104,11 @@ class WifiDataSource(private val context: Context) {
             )
             InetAddress.getByAddress(bytes).hostAddress ?: ""
         } catch (_: UnknownHostException) { "" }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun isWifiEnabled(wm: WifiManager): Boolean {
+        return try { wm.isWifiEnabled } catch (_: Throwable) { false }
     }
 
     private fun scanNearbyAps(): List<String> {
