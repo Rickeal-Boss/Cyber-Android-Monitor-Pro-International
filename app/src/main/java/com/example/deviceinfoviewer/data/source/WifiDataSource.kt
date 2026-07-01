@@ -34,11 +34,11 @@ class WifiDataSource(private val context: Context) {
 
         val wifiInfo: WifiInfo = wm.connectionInfo ?: return info
 
-        info.ssid = wifiInfo.ssid.replace("\"", "")
-        info.bssid = wifiInfo.bssid
+        info.ssid = (wifiInfo.ssid ?: "").replace("\"", "")
+        info.bssid = wifiInfo.bssid ?: ""
         info.signalDbm = wifiInfo.rssi
         info.linkSpeedMbps = wifiInfo.linkSpeed
-        info.macAddress = wifiInfo.macAddress
+        info.macAddress = wifiInfo.macAddress ?: ""
 
         // WiFi 频率 & 标准检测 (Android 5.0+)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
@@ -89,7 +89,7 @@ class WifiDataSource(private val context: Context) {
             cachedWifiTemp = ShellCommandDataSource.extractWifiTemperature(wifiOutput)
             cachedPowerSave = ShellCommandDataSource.extractWifiPowerSave(wifiOutput)
             dumpsysWifiResolved = true
-        } catch (_: Throwable) {}
+        } catch (e: Throwable) {}
         info.chipTemperatureCelsius = cachedWifiTemp
         info.powerSaveMode = cachedPowerSave
     }
@@ -106,7 +106,7 @@ class WifiDataSource(private val context: Context) {
                 ((ip shr 24) and 0xFF).toByte()
             )
             InetAddress.getByAddress(bytes).hostAddress ?: ""
-        } catch (_: UnknownHostException) { "" }
+        } catch (e: UnknownHostException) { "" }
     }
 
     companion object {
@@ -129,49 +129,77 @@ class WifiDataSource(private val context: Context) {
                 Log.d(TAG, "isWifiOn: wifiState=$state, isWifiEnabled=$enabled")
                 enabled
             }
-        } catch (_: Throwable) { false }
+        } catch (e: Throwable) {
+            Log.w(TAG, "isWifiOn failed", e) ; false
+        }
     }
+
+    // ═══════ 扫描结果缓存 ═══════
+    // 扫描与轮询解耦：启动异步扫描后，下个轮询周期读取结果
+    @Volatile private var cachedAps: List<String> = emptyList()
+    @Volatile private var lastScanTimestamp: Long = 0L
+    private val scanIntervalMs = 15_000L       // 缓存有效期
+    private val scanCooldownMs = 30_000L       // 两次 startScan 最小间隔
 
     private fun scanNearbyAps(): List<String> {
         return try {
-            val wm = appContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager ?: return emptyList()
+            val wm = appContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+                ?: return cachedAps
 
-            // 主动触发一次扫描（非连接状态下系统缓存可能为空）
-            if (!tryStartScan(wm)) {
-                Log.d(TAG, "startScan failed/restricted — falling back to cached results")
-            }
-
+            // ★ 每次调用都先读取 scanResults — 上次触发的扫描可能已完成
             val results = wm.scanResults ?: emptyList()
-            Log.d(TAG, "scanResults: ${results.size} APs")
+            val now = System.currentTimeMillis()
+            val sinceLastScan = now - lastScanTimestamp
 
-            results.take(5).map { r ->
-                (r.SSID.ifEmpty { "<hidden>" }) + ": " + r.level + "dBm"
+            Log.d(TAG, "getScanResults: ${results.size} APs (cached=${cachedAps.size}, sinceLastScan=${sinceLastScan}ms)")
+
+            // 有新结果 → 更新缓存
+            if (results.isNotEmpty()) {
+                cachedAps = results.take(5).map { r ->
+                    (r.SSID.ifEmpty { "<hidden>" }) + ": " + r.level + "dBm"
+                }
+                Log.d(TAG, "cached ${cachedAps.size} APs from fresh scan")
+                return cachedAps
             }
-        } catch (_: Throwable) {
-            Log.w(TAG, "scanNearbyAps failed", _)
-            emptyList()
+
+            // 结果为空但缓存仍有效 → 继续用旧缓存
+            if (cachedAps.isNotEmpty() && sinceLastScan < scanIntervalMs) {
+                Log.d(TAG, "returning stale cache (${cachedAps.size} APs, age=${sinceLastScan}ms)")
+                return cachedAps
+            }
+
+            // 结果为空且缓存过期 → 触发异步扫描
+            val shouldScan = lastScanTimestamp == 0L || sinceLastScan >= scanCooldownMs
+            if (shouldScan) {
+                lastScanTimestamp = now
+                tryStartScan(wm)
+                Log.d(TAG, "startScan triggered (async), awaiting results next cycle")
+            } else {
+                Log.d(TAG, "scan skipped (cooldown ${sinceLastScan}ms < ${scanCooldownMs}ms)")
+            }
+
+            cachedAps  // 返回空 (或旧缓存，如果冷却期内)
+        } catch (e: Throwable) {
+            Log.w(TAG, "scanNearbyAps failed", e)
+            cachedAps
         }
     }
 
     /**
-     * 尝试触发主动 WiFi 扫描，失败不阻塞
-     * API 29+ startScan 受限制，低版本可直接使用
+     * 触发 WiFi 扫描
+     * ⚠️ API 29+ (Android 10+) WifiManager.startScan() 始终返回 false，
+     * 但扫描请求仍会被系统异步处理。不要依赖返回值判断成败。
+     * 扫描完成后 getScanResults() 在下个轮询周期会返回新数据。
      */
-    @Suppress("DEPRECATION")
-    private fun tryStartScan(wm: WifiManager): Boolean {
-        return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // API 29+: startScan() 已弃用且受严格限制，尝试调用但不强求
-                Log.d(TAG, "API 29+ — skip proactive startScan, rely on system background scans")
-                false
-            } else {
-                val ok = wm.startScan()
-                Log.d(TAG, "startScan() = $ok")
-                ok
-            }
-        } catch (_: Throwable) {
-            Log.w(TAG, "startScan threw", _)
-            false
+    @Suppress("DEPRECATION", "MissingPermission")
+    private fun tryStartScan(wm: WifiManager) {
+        try {
+            val ok = wm.startScan()
+            Log.d(TAG, "startScan() returned $ok (API 29+ always false, scan is async)")
+        } catch (e: SecurityException) {
+            Log.w(TAG, "startScan SecurityException — missing CHANGE_WIFI_STATE or location", e)
+        } catch (e: Throwable) {
+            Log.w(TAG, "startScan failed", e)
         }
     }
 
